@@ -2,6 +2,8 @@
 #include <iostream>
 #include <assert.h>
 
+#define CHIP8_CONFIG 1 // 1 == original ; 2 == superchip
+
 CPU::CPU() {
 	uint8_t font[80] =
 	{
@@ -132,12 +134,69 @@ void CPU::clock() {
 
 		case 0x0006:
 
+		#if CHIP8_CONFIG == 1
+			V[(opcode & 0x0F00) >> 8] = V[opcode & 0x00F0];
+		#endif
+			V[0xF] = (V[(opcode & 0x0F00) >> 8] & 0x1);
+			V[(opcode & 0x0F00) >> 8] >>= 1;
+			pc += 2;
+			break;
 
+		case 0x0007:
+			V[0xF] = 1;
+			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
+			(V[(opcode & 0x0F00) >> 8] > V[(opcode & 0x00F0) >> 4]) ? V[0xF] = 0 : V[0xF] = 1;
+			pc += 2;
+			break;
 
+		case 0x000E:
+			V[0xF] = V[(opcode & 0x0F00) >> 8] >> 7;
+			V[(opcode & 0x0F00) >> 8] <<= 1;
+			pc += 2;
+			break;
 		}
 
-	}
+	case 0x9000:
+		V[(opcode & 0x0F00) >> 8] != V[opcode & 0x00F0] ? pc += 4 : pc += 2;
+		break;
 
+	case 0xA000:
+		I = opcode & 0x0FFF;
+		pc += 2;
+		break;
+
+	case 0xB000:
+	#if CHIP8_CONFIG == 1
+		pc = (opcode & 0x0FFF) + V[0x0];
+		break;
+	#endif
+	#if CHIP8_CONFIG == 2
+		pc = (opcode & 0x0FFF) + V[(opcode & 0x0F00) >> 8];
+		break;
+	#endif
+
+	case 0xC000:
+		V[(opcode & 0x0F00) >> 8] = (0 + rand() % 0xFF) & (opcode & 0x00FF);
+		pc += 2;
+		break;
+
+	case 0xD000: // 0xDXYN where (X,Y) - coordinates and N represents height in pixels, width = 8 pixels;
+		uint8_t X = V[(opcode & 0x0F00) >> 8] & 63;
+		uint8_t Y = V[(opcode & 0x00F0) >> 4] & 31;
+		uint8_t H = opcode & 0x000F;
+		uint8_t sprite_data;
+		
+		V[0xF] = 0;
+
+		for (int i = 0; i < H; i++) {
+			sprite_data = ram[I + i];
+			for (int j; j < 8; j++) {
+
+			}
+
+		}
+	}
+		
 
 }
 

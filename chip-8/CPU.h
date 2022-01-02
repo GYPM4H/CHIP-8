@@ -23,11 +23,9 @@ public:
 
 	uint8_t graphics[64 * 32];
 	uint8_t keypad[16];
-	bool pixel_switch;
+	bool draw;
 
 	void clock();
-	void fetch();
-	void decode();
 	bool load_rom(const char* path);
 };
 
