@@ -8,7 +8,7 @@ class CPU
 private:
 	uint8_t ram[RAM_SIZE];
 	uint8_t V[16];
-	uint8_t stack[48];
+	uint16_t stack[16];
 
 	uint8_t delay_timer;
 	uint8_t sound_timer;
@@ -27,6 +27,6 @@ public:
 	bool key_pressed;
 
 	void clock();
-	bool load_rom(const char* path);
+	void load_rom(const char* path);
 };
 

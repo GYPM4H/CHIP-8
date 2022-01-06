@@ -4,6 +4,7 @@
 #include <string>
 
 #define CHIP8_CONFIG 1 // 1 == original ; 2 == superchip
+#define ROM_SIZE (4096 - 512)
 
 CPU::CPU() {
 	uint8_t font[80] =
@@ -27,6 +28,7 @@ CPU::CPU() {
 	};
 
 	pc = 0x200;
+	draw = false;
 
 	for (int i = 0; i < 80; i++) {
 		ram[i] = font[i];
@@ -52,34 +54,22 @@ CPU::~CPU() {
 
 }
 
-bool CPU::load_rom(const char* path) {
+void CPU::load_rom(const char* path) {
 	FILE* rom = fopen(path, "r");
-	assert(std::ferror(rom) != 0, "Failed to load rom");
-	uint8_t buffer[3584];
+	assert(std::ferror(rom) == 0);
 
-	std::fread(buffer, sizeof(uint8_t), 3584, rom);
+	size_t bytes_read = std::fread(ram + 512, sizeof(uint8_t), ROM_SIZE, rom);
 
-	assert(std::feof(rom) == 0, "Failed to load rom");
-
-	std::rewind(rom);
-	std::fseek(rom, 0, SEEK_END);
-	long rom_size = std::ftell(rom);
-	std::rewind(rom);
-
-
-	for (int i = 0; i < rom_size; i++) {
-		ram[i + 512] = buffer[i];
-	}
+	assert(std::feof(rom) != 0);
 
 	std::fclose(rom);
 }
 
 void CPU::clock() {
 	opcode = (ram[pc]) << 8 | (ram[pc + 1]); // pc is 8 bits. opcode is 16 bits. So we bitshift to the left and add another 8 bits;
-	uint16_t opcode_number = opcode & 0xF000;
-	 
+	
 	// implemet call and return from subroutine
-	switch (opcode_number) {
+	switch (opcode & 0xF000) {
 	case 0x0000:
 		switch(opcode & 0x000F){
 		case 0x0000:
@@ -91,7 +81,7 @@ void CPU::clock() {
 			break;
 
 		case 0x000E:
-			pc = stack[sp];
+			pc = stack[--sp];
 			pc += 2;
 			break;
 		}
@@ -152,8 +142,8 @@ void CPU::clock() {
 			break;
 
 		case 0x0004:
-			V[(opcode & 0x0F00) >> 8] += V[(opcode & 0x00F0) >> 4];
 			((V[(opcode & 0x0F00) >> 8] + V[(opcode & 0x00F0) >> 4]) > 0xFF) ? V[0xF] = 1 : V[0xF] = 0;
+			V[(opcode & 0x0F00) >> 8] += V[(opcode & 0x00F0) >> 4];
 			pc += 2;
 			break;
 
@@ -213,7 +203,8 @@ void CPU::clock() {
 		pc += 2;
 		break;
 
-	case 0xD000: // 0xDXYN where (X,Y) - coordinates and N represents height in pixels, width = 8 pixels;
+	case 0xD000:// 0xDXYN where (X,Y) - coordinates and N represents height in pixels, width = 8 pixels;
+	{
 		uint8_t X = V[(opcode & 0x0F00) >> 8] % 64;
 		uint8_t Y = V[(opcode & 0x00F0) >> 4] % 32;
 		uint8_t H = opcode & 0x000F;
@@ -222,23 +213,32 @@ void CPU::clock() {
 		uint8_t dy = std::min(32 - Y, static_cast<int>(H));
 		V[0xF] = 0;
 
+		//for (int i = 0; i < H; i++) {
+		//	sprite_data = ram[I + i];
+		//	for (int j = 0; j < 8; j++) {
+		//		 ((sprite_data >> (8 - j)) & (0x1)) ? std::cout << "#" : std::cout << " ";
+		//	}
+		//	std::cout << '\n';
+		//}
 		for (int i = 0; i < dy; i++) {
 			sprite_data = ram[I + i];
 			for (int j = 0; j < dx; j++) {
 
-				if ((sprite_data >> j) & 1) {
-					if (graphics[(X + j) + (Y + i) * 8]) {
-						graphics[(X + j) + (Y + i) * 8] = 0;
+				if ((sprite_data >> (8 - j)) & 1) {
+					if (graphics[(X + j) + (Y + i) * 64]) {
+						graphics[(X + j) + (Y + i) * 64] = 0;
 						V[0xF] = 0x01;
 					}
 					else {
-						graphics[(X + j) + (Y + i) * 8] = 1;
+						graphics[(X + j) + (Y + i) * 64] = 0xFF;
 					}
 				}
 			}
 		}
+		draw = true;
+		pc += 2;
 		break;
-
+	}
 	case 0xE000:
 		switch (opcode & 0x00FF) {
 		case 0x009E:
@@ -274,11 +274,12 @@ void CPU::clock() {
 					pc += 2;
 					break;
 				}
-				else if(key_pressed = false){
+				else if(key_pressed == false){
 					pc -= 2;
 					break;
 				}
 			}
+			break;
 
 		case 0x0015:
 			delay_timer = V[(opcode & 0x0F00) >> 8];
