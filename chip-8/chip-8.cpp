@@ -1,8 +1,14 @@
 #include <iostream>
+#include "CPU.h"
 
 int main()
 {
-    std::cout << "Hello World!\n";
+    CPU chip8 = CPU();
+
+
+    while (true) {
+    
+    }
 }
 
 

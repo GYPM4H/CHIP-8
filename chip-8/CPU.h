@@ -24,6 +24,7 @@ public:
 	uint8_t graphics[64 * 32];
 	uint8_t keypad[16];
 	bool draw;
+	bool key_pressed;
 
 	void clock();
 	bool load_rom(const char* path);
